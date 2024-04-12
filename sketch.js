@@ -1,6 +1,3 @@
-const mySoundModelURL = 'https://teachablemachine.withgoogle.com/models/3x0FZN4iO/';
-let mySoundModel;
-let resultDiv;
 let serial;// variable to hold an instance of the serialport library
 let portName = 'COM3';// fill in your serial port name here
 let outByte = 0;// for outgoing data
@@ -12,29 +9,128 @@ let mX;
 let mY = 0;
 // ---
 
-function preload() {
-  mySoundModel = ml5.soundClassifier(mySoundModelURL+ 'model.json');
-}
+//EmotionRec
+let capture;
+let capturewidth = 640;    
+let captureheight = 480;
+let emotions = ["neutral","happy", "sad", "angry","fearful", "disgusted","surprised"];
+let faceapi;
+let detections = [];
 
 function setup() {
 
-  // ---
-  // createCanvas(512, 512);
-  // // define the colors
-  // dark = color(0);
-  // light = color(255, 204, 0);
-  // ---
 
+  //EmotionRec
+  createCanvas(capturewidth, captureheight);
+  capture = createCapture(VIDEO);
+  capture.position(0,0);
+  capture.hide();
+  const faceOptions = {withLandmarks: true, withExpressions: true, withDescriptors: false};
+  faceapi = ml5.faceApi(capture, faceOptions, faceReady);
+  //EmotionRec
 
-  resultDiv = createElement('h1',  '...');
+  
   serial = new p5.SerialPort();    // make a new instance of the serialport library
   serial.on('error', serialError); // callback for errors
   serial.open(portName);           // open a serial port
-  mySoundModel.classify(gotResults);
 }
 
 function serialError(err) {
   console.log('Something went wrong with the serial port. ' + err);
+}
+
+function faceReady(){
+  faceapi.detect(gotFaces);
+}
+
+function gotFaces(error, result){
+  if (error){
+    console.log(error);
+    return
+  }
+    detections = result;
+    faceapi.detect(gotFaces);
+   // console.log(detections);
+}
+  
+
+function draw() {
+  
+  background(0);
+  
+  capture.loadPixels();
+  
+  push();
+  fill('green');
+      if(detections.length>0){
+        for (i=0; i<detections.length; i ++){
+          var points = detections[i].landmarks.positions;
+
+          for (j=0; j<points.length; j ++){
+            circle( points[j]._x,points[j]._y, 5);
+          }
+          
+          var neutralLevel = detections[i].expressions.neutral;
+          var happyLevel = detections[i].expressions.happy;
+          var sadLevel = detections[i].expressions.sad;
+          var angryLevel = detections[i].expressions.angry;
+          var fearfulLevel = detections[i].expressions.fearful;
+          var disgustedLevel = detections[i].expressions.disgusted;
+          var surprisedLevel = detections[i].expressions.surprised;
+          
+          push();
+          
+          for (k = 0; k<emotions.length; k++) {
+            
+            var thisemotion = emotions[k];
+            
+            var thisemotionlevel= detections[i].expressions[thisemotion];
+            
+            text(thisemotion + " value: " + thisemotionlevel,40,30 + 30 * k );
+            rect(40, 30 + 30 * k, thisemotionlevel * 100,10 );
+            
+            
+            
+          } 
+            
+          if (happyLevel > 0.01){
+            textSize(60);
+            text("😊", 450, 350);
+            // twinkle, pastel-color
+            mY += 10;
+          }
+          else if (neutralLevel > 0.997 || happyLevel > 0.003) {
+            textSize(60);
+            text("🙂", 450, 350);
+            // waves, white
+            mY -= 5;
+          }
+          else if (sadLevel > 0.05 && angryLevel < 0.05 && disgustedLevel < 0.1) {
+            textSize(60);
+            text("😢", 450, 350);
+            mY -= 10;
+          }
+          else if ((neutralLevel < 0.997 || sadLevel > 0.01) && angryLevel < 0.05 && disgustedLevel < 0.1) {
+            textSize(60);
+            text("😐", 450, 350);
+            // white-noise, black
+            mY -= 5;
+          }
+          else if (angryLevel > 0.05 || disgustedLevel > 0.2) {
+            textSize(60);
+            text("😡", 450, 350);
+            // blaze, vibrant-color
+            mY -= 50;
+          }
+          
+          }    
+    }
+      pop();
+      bright = floor(map(mY, 0, 512, 0, 255));
+    bright = constrain(bright, 0, 255);
+    serial.write(bright);
+    console.log(bright);
+
 }
 
 function gotResults(err, results) {
@@ -70,24 +166,3 @@ function gotResults(err, results) {
     // ---
   }
 }
-
-
-// ---
-// function drawGradient(c1, c2) {
-//   noFill();
-//   for (let y = 0; y < height; y++) {
-//     let interp = map(y, 0, height, 0, 1);
-//     let c = lerpColor(c1, c2, interp);
-//     stroke(c);
-//     line(0, y, width, y);
-//   }
-// }
-
-// function draw() {
-//   drawGradient(dark, light);
-//   stroke(255);
-//   strokeWeight(3);
-//   noFill();
-//   ellipse(mouseX, mouseY, 10, 10);
-// }
-// ---
