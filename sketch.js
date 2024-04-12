@@ -16,6 +16,25 @@ let captureheight = 480;
 let emotions = ["neutral","happy", "sad", "angry","fearful", "disgusted","surprised"];
 let faceapi;
 let detections = [];
+//EmotionRec
+
+
+//sound
+let song, chimes, rain, thunder, white_noise;
+let hasPlayed;
+//sound
+
+function preload() {
+  chimes = loadSound('chimes.mp3');
+  rain = loadSound('rain.mp3');
+  thunder = loadSound('thunder.mp3');
+  white_noise = loadSound('white-noise.mp3');
+  white_noise.setVolume(0.01);
+  song = white_noise;
+  songs = [chimes, rain, thunder, white_noise];
+  songHasPlayed = [false, false, false, false];
+  songIndex = 3;
+}
 
 function setup() {
 
@@ -98,6 +117,7 @@ function draw() {
             text("😊", 450, 350);
             // twinkle, pastel-color
             mY += 10;
+            songIndex = 0;
           }
           else if (neutralLevel > 0.997 || happyLevel > 0.003) {
             textSize(60);
@@ -109,28 +129,73 @@ function draw() {
             textSize(60);
             text("😢", 450, 350);
             mY -= 10;
+            songIndex = 3;
           }
           else if ((neutralLevel < 0.997 || sadLevel > 0.01) && angryLevel < 0.05 && disgustedLevel < 0.1) {
             textSize(60);
             text("😐", 450, 350);
             // white-noise, black
             mY -= 5;
+            songIndex = 3;
           }
           else if (angryLevel > 0.05 || disgustedLevel > 0.2) {
             textSize(60);
             text("😡", 450, 350);
             // blaze, vibrant-color
-            mY -= 50;
+            mY = 0;
+            songIndex = 2;
           }
           
           }    
     }
-      pop();
-      bright = floor(map(mY, 0, 512, 0, 255));
+    //sound
+    console.log(songIndex);
+  
+  //if song is NOT already Playing, and has NOT already been played
+  // if (!songs[songIndex].isPlaying() && !songHasPlayed[songIndex]) {
+  // if song is NOT already Playing
+  if (!songs[songIndex].isPlaying() && !songHasPlayed[songIndex]) {
+
+    let songIsPlaying = false;
+
+    for(let i=0; i<songHasPlayed.length; i++) {
+      console.log(songHasPlayed);
+      // determine if any of the songs are playing, and which song isPlaying & stop it
+      if (songs[i].isPlaying()) {
+        console.log('stopping: ', songs[i]);
+        songs[i].stop();
+        songHasPlayed[i] = false;
+        console.log('AFTER stopping ', songHasPlayed);
+      }
+
+      else { // if none of the songs are playing, set play white noise and reset songHasPlayed
+        // songIndex = 3;
+        for (let i =0; i<songHasPlayed.length; i++) {
+          songHasPlayed[i] = false;
+        }
+      }
+    }
+    // play song
+    songs[songIndex].play();
+    if (songIndex != 3) {
+      songs[songIndex].setLoop(false);
+    }
+    else {
+      songs[songIndex].setLoop(true);
+    }
+    userStartAudio();
+    songHasPlayed[songIndex] = true;
+    console.log('starting ', songs[songIndex]);
+    console.log('AFTER starting ', songHasPlayed);
+  }
+    //sound
+    pop();
+
+    // Serial
+    bright = floor(map(mY, 0, 512, 0, 255));
     bright = constrain(bright, 0, 255);
     serial.write(bright);
     console.log(bright);
-
 }
 
 function gotResults(err, results) {
